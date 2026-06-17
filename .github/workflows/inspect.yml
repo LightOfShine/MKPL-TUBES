@@ -1,0 +1,135 @@
+name: Continuous Inspection
+
+# Workflow ini berjalan pada setiap push dan pull request ke branch main dan develop
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  inspect:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout source code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Setup JDK 21
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # Step 3: Compile project terlebih dahulu (diperlukan oleh SpotBugs)
+      - name: Compile Project
+        run: mvn -B compile
+
+      # Step 4: Jalankan Checkstyle - cek coding style berdasarkan konfigurasi
+      - name: Run Checkstyle
+        run: mvn -B checkstyle:check -Dcheckstyle.failsOnError=true
+
+      # Step 5: Jalankan SpotBugs - deteksi potential bugs di bytecode
+      - name: Run SpotBugs
+        run: mvn -B spotbugs:check -Dspotbugs.failOnError=true
+
+      # Step 6: Jalankan PMD - deteksi code smells
+      - name: Run PMD
+        run: mvn -B pmd:check -Dpmd.failOnViolation=true
+
+      # Step 7: Jalankan CPD (Copy-Paste Detector) - deteksi duplikasi kode
+      - name: Run CPD (Copy-Paste Detector)
+        run: mvn -B pmd:cpd -Dcpd.failOnViolation=true
+
+      # Step 8: Upload semua inspection reports
+      - name: Upload Checkstyle Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-report
+          path: target/checkstyle-result.xml
+          retention-days: 7
+
+      - name: Upload SpotBugs Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spotbugs-report
+          path: target/spotbugsXml.xml
+          retention-days: 7
+
+      - name: Upload PMD Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmd-report
+          path: |
+            target/pmd.xml
+            target/cpd.xml
+          retention-days: 7
+
+      # Step 9: Generate inspection summary
+      - name: Inspection Summary
+        if: always()
+        run: |
+          echo "## 🔍 Code Inspection Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Checkstyle Results
+          echo "### Checkstyle (Code Style)" >> $GITHUB_STEP_SUMMARY
+          if [ -f "target/checkstyle-result.xml" ]; then
+            VIOLATIONS=$(grep -c "<error " target/checkstyle-result.xml 2>/dev/null || echo "0")
+            if [ "$VIOLATIONS" -eq "0" ]; then
+              echo "✅ No style violations found!" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ Found **$VIOLATIONS** style violation(s). Check the checkstyle-report artifact for details." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "❌ Checkstyle report not generated." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # SpotBugs Results
+          echo "### SpotBugs (Bug Detection)" >> $GITHUB_STEP_SUMMARY
+          if [ -f "target/spotbugsXml.xml" ]; then
+            BUGS=$(grep -c "<BugInstance" target/spotbugsXml.xml 2>/dev/null || echo "0")
+            if [ "$BUGS" -eq "0" ]; then
+              echo "✅ No bugs detected!" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ Found **$BUGS** potential bug(s). Check the spotbugs-report artifact for details." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "✅ SpotBugs analysis passed (no report file = no bugs)." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # PMD Results
+          echo "### PMD (Code Smells)" >> $GITHUB_STEP_SUMMARY
+          if [ -f "target/pmd.xml" ]; then
+            SMELLS=$(grep -c "<violation" target/pmd.xml 2>/dev/null || echo "0")
+            if [ "$SMELLS" -eq "0" ]; then
+              echo "✅ No code smells found!" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ Found **$SMELLS** code smell(s). Check the pmd-report artifact for details." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "✅ PMD analysis passed." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # CPD Results
+          echo "### CPD (Duplicate Code)" >> $GITHUB_STEP_SUMMARY
+          if [ -f "target/cpd.xml" ]; then
+            DUPLICATES=$(grep -c "<duplication" target/cpd.xml 2>/dev/null || echo "0")
+            if [ "$DUPLICATES" -eq "0" ]; then
+              echo "✅ No duplicate code detected!" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ Found **$DUPLICATES** code duplication(s). Check the pmd-report artifact for details." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "✅ CPD analysis passed." >> $GITHUB_STEP_SUMMARY
+          fi
