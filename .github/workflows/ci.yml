@@ -1,0 +1,51 @@
+name: Continuous Integration
+
+# Workflow ini berjalan pada setiap push dan pull request ke branch main dan develop
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  build:
+    name: Build Project
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout source code dari repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Setup JDK 21 (Temurin distribution) dengan Maven caching
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # Step 3: Compile source code
+      - name: Compile Source Code
+        run: mvn -B compile
+
+      # Step 4: Package project (skip tests karena ada workflow terpisah)
+      - name: Package Project
+        run: mvn -B package -DskipTests
+
+      # Step 5: Upload build artifact untuk digunakan job lain
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact
+          path: target/*.jar
+          retention-days: 7
+
+      # Step 6: Tampilkan ringkasan build di GitHub Actions
+      - name: Build Summary
+        run: |
+          echo "## ✅ Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Java Version:** 21 (Temurin)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Maven Command:** mvn -B package -DskipTests" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** Build completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact:** target/*.jar uploaded" >> $GITHUB_STEP_SUMMARY
