@@ -1,0 +1,83 @@
+name: Continuous Testing
+
+# Workflow ini berjalan pada setiap push dan pull request ke branch main dan develop
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  test:
+    name: Run Tests & Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout source code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Setup JDK 21
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # Step 3: Jalankan semua unit tests dengan JaCoCo coverage
+      - name: Run Unit Tests with Coverage
+        run: mvn -B clean test
+
+      # Step 4: Upload Surefire test reports sebagai artifact
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: target/surefire-reports/
+          retention-days: 7
+
+      # Step 5: Upload JaCoCo coverage report sebagai artifact
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/site/jacoco/
+          retention-days: 7
+
+      # Step 6: Generate test summary dengan coverage info
+      - name: Test & Coverage Summary
+        if: always()
+        run: |
+          echo "## 🧪 Test & Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Parse test results dari Surefire reports
+          if [ -d "target/surefire-reports" ]; then
+            TESTS_RUN=$(grep -r "tests=" target/surefire-reports/*.xml 2>/dev/null | grep -oP 'tests="\K[0-9]+' | awk '{sum+=$1} END {print sum}' || echo "N/A")
+            TESTS_FAILED=$(grep -r "failures=" target/surefire-reports/*.xml 2>/dev/null | grep -oP 'failures="\K[0-9]+' | awk '{sum+=$1} END {print sum}' || echo "N/A")
+            TESTS_ERRORS=$(grep -r "errors=" target/surefire-reports/*.xml 2>/dev/null | grep -oP 'errors="\K[0-9]+' | awk '{sum+=$1} END {print sum}' || echo "N/A")
+            TESTS_SKIPPED=$(grep -r "skipped=" target/surefire-reports/*.xml 2>/dev/null | grep -oP 'skipped="\K[0-9]+' | awk '{sum+=$1} END {print sum}' || echo "N/A")
+
+            echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Tests Run | $TESTS_RUN |" >> $GITHUB_STEP_SUMMARY
+            echo "| Failures | $TESTS_FAILED |" >> $GITHUB_STEP_SUMMARY
+            echo "| Errors | $TESTS_ERRORS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Skipped | $TESTS_SKIPPED |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Info tentang JaCoCo report
+          if [ -f "target/site/jacoco/index.html" ]; then
+            echo "### Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "✅ JaCoCo coverage report generated successfully." >> $GITHUB_STEP_SUMMARY
+            echo "📥 Download the **coverage-report** artifact to view detailed coverage." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ JaCoCo coverage report was not generated." >> $GITHUB_STEP_SUMMARY
+          fi
