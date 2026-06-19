@@ -40,7 +40,7 @@ jobs:
       # mvn clean test site akan menjalankan test, lalu langsung men-generate site
       # Tanpa flag -DskipTests, maven-surefire-report-plugin akan berhasil membuat surefire-report.html
       - name: Run Tests and Generate Maven Site
-        run: mvn -B clean test site
+        run: mvn -B clean test surefire-report:report site
 
       # Step 5: Tambahkan custom index page
       - name: Create Custom Index Page
