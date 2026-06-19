@@ -45,29 +45,61 @@ jobs:
       - name: Generate Maven Site
         run: mvn -B site -DskipTests
 
-      # Step 5: Generate Surefire Report SETELAH site (agar tidak tertimpa)
-      # surefire-report:report-only menggunakan hasil test XML yang sudah ada
-      - name: Generate Surefire Report
-        run: mvn -B surefire-report:report-only -DreportOutputDirectory=target/site
-
-      # Step 6: Verifikasi surefire-report.html ada di target/site/
-      - name: Verify Surefire Report
+      # Step 5: Generate Surefire Report dan pastikan ada di target/site/
+      - name: Generate and Place Surefire Report
         run: |
-          echo "=== Checking for surefire-report.html ==="
-          find target/site -name "surefire-report.html" -type f 2>/dev/null
-          if [ -f target/site/surefire-report.html ]; then
-            echo "✅ surefire-report.html FOUND in target/site/"
-          else
-            echo "❌ NOT found in target/site/, searching elsewhere..."
-            find target -name "surefire-report.html" -type f 2>/dev/null
+          echo "=== Step 1: Generate surefire report ==="
+          mvn -B surefire-report:report-only || true
+          
+          echo "=== Step 2: Search for surefire-report.html everywhere ==="
+          find target -name "surefire-report.html" -type f 2>/dev/null
+          
+          echo "=== Step 3: Copy to target/site/ if not already there ==="
+          if [ ! -f target/site/surefire-report.html ]; then
             FOUND=$(find target -name "surefire-report.html" -type f | head -1)
             if [ -n "$FOUND" ]; then
               echo "Found at: $FOUND — copying to target/site/"
               cp "$FOUND" target/site/surefire-report.html
+            else
+              echo "Not found via plugin, generating from XML manually..."
+              # Fallback: buat halaman HTML sederhana dari XML test results
+              cat > target/site/surefire-report.html << 'EOF'
+          <!DOCTYPE html>
+          <html><head><title>Surefire Report</title>
+          <style>
+          body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+          h1 { color: #333; } table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background: #4CAF50; color: white; } .pass { color: green; } .fail { color: red; }
+          </style></head><body>
+          <h1>🧪 Surefire Test Report</h1>
+          <p>Generated from CI/CD Pipeline</p>
+          <table><tr><th>Test Class</th><th>Tests</th><th>Failures</th><th>Errors</th><th>Status</th></tr>
+          EOF
+              # Parse XML test results
+              for xml in target/surefire-reports/TEST-*.xml; do
+                if [ -f "$xml" ]; then
+                  name=$(grep -oP 'name="\K[^"]+' "$xml" | head -1)
+                  tests=$(grep -oP 'tests="\K[^"]+' "$xml" | head -1)
+                  failures=$(grep -oP 'failures="\K[^"]+' "$xml" | head -1)
+                  errors=$(grep -oP 'errors="\K[^"]+' "$xml" | head -1)
+                  if [ "$failures" = "0" ] && [ "$errors" = "0" ]; then
+                    status='<span class="pass">✅ PASSED</span>'
+                  else
+                    status='<span class="fail">❌ FAILED</span>'
+                  fi
+                  echo "<tr><td>$name</td><td>$tests</td><td>$failures</td><td>$errors</td><td>$status</td></tr>" >> target/site/surefire-report.html
+                fi
+              done
+              echo "</table></body></html>" >> target/site/surefire-report.html
+              echo "✅ Generated fallback surefire-report.html from XML"
             fi
+          else
+            echo "✅ surefire-report.html already exists in target/site/"
           fi
-          echo "=== All HTML files in target/site/ ==="
-          ls target/site/*.html 2>/dev/null || echo "No HTML files found"
+          
+          echo "=== Final verification ==="
+          ls -la target/site/surefire-report.html 2>/dev/null && echo "✅ CONFIRMED: surefire-report.html is ready" || echo "❌ FAILED"
 
       # Step 7: Tambahkan custom index page
       - name: Create Custom Index Page
