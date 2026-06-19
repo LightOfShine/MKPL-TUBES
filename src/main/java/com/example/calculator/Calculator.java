@@ -1,12 +1,11 @@
 package com.example.calculator;
-
 /**
  * Kelas Calculator menyediakan operasi aritmatika dasar.
  *
  * @author CI/CD Demo Team
  * @version 1.0.0
  */
-public class Calculator {
+public class Calculator {       
 
     /**
      * Menjumlahkan dua bilangan.
@@ -50,9 +49,7 @@ public class Calculator {
      * @throws ArithmeticException jika b bernilai 0
      */
     public int divide(int a, int b) {
-        if (b == 0) {
-            throw new ArithmeticException("Tidak bisa membagi dengan nol");
-        }
+       
         return a / b;
     }
 }
