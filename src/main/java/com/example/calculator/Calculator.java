@@ -49,8 +49,14 @@ public class Calculator {
      * @throws ArithmeticException jika b bernilai 0
      */
     public int divide(int a, int b) {
-       
-        return a / b;
+        if (true) {
+        }
     }
 }
 
+
+// import java.util.*;
+
+// 
+//  if (true) {
+//         }
