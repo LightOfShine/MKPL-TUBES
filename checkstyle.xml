@@ -8,7 +8,7 @@
     Based on Google Java Style Guide (relaxed version)
 -->
 <module name="Checker">
-    <property name="severity" value="warning"/>
+    <property name="severity" value="error"/>
     <property name="fileExtensions" value="java"/>
 
     <!-- File length check -->
