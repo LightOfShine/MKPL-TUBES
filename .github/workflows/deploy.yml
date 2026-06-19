@@ -36,20 +36,11 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      # Step 3: Jalankan tests untuk generate coverage report
-      - name: Run Tests for Coverage
-        run: mvn -B clean test
-
-      # Step 4: Generate Maven Site dengan semua reports
-      # Maven Site akan menghasilkan:
-      # - Javadoc (API Documentation)
-      # - JaCoCo (Code Coverage Report)
-      # - Checkstyle (Code Style Report)
-      # - SpotBugs (Bug Report)
-      # - PMD (Code Smells Report)
-      # - Surefire (Test Results Report)
-      - name: Generate Maven Site
-        run: mvn -B site -DskipTests
+      # Step 3: Jalankan tests dan generate Maven Site (Reports) sekaligus
+      # mvn clean test site akan menjalankan test, lalu langsung men-generate site
+      # Tanpa flag -DskipTests, maven-surefire-report-plugin akan berhasil membuat surefire-report.html
+      - name: Run Tests and Generate Maven Site
+        run: mvn -B clean test site
 
       # Step 5: Tambahkan custom index page
       - name: Create Custom Index Page
