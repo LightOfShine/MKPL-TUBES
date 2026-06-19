@@ -40,41 +40,34 @@ jobs:
       - name: Run Tests
         run: mvn -B clean test
 
-      # Step 4: Generate Surefire Report (HTML) secara eksplisit ke target/site/
-      - name: Generate Surefire Report
-        run: mvn -B surefire-report:report-only -DoutputDirectory=target/site
-
-      # Step 5: Generate Maven Site dengan semua reports
+      # Step 4: Generate Maven Site dengan semua reports
+      # Ini akan membuat folder target/site/ dari awal
       - name: Generate Maven Site
         run: mvn -B site -DskipTests
 
-      # Step 6: Verifikasi dan pastikan surefire-report.html ada di target/site/
-      - name: Ensure Surefire Report Exists
+      # Step 5: Generate Surefire Report SETELAH site (agar tidak tertimpa)
+      # surefire-report:report-only menggunakan hasil test XML yang sudah ada
+      - name: Generate Surefire Report
+        run: mvn -B surefire-report:report-only -DreportOutputDirectory=target/site
+
+      # Step 6: Verifikasi surefire-report.html ada di target/site/
+      - name: Verify Surefire Report
         run: |
           echo "=== Checking for surefire-report.html ==="
-          # Cari file surefire-report.html di seluruh folder target
-          find target -name "surefire-report.html" -type f 2>/dev/null
-          # Jika belum ada di target/site/, cari dan salin dari lokasi lain
-          if [ ! -f target/site/surefire-report.html ]; then
-            echo "surefire-report.html NOT found in target/site/, searching..."
+          find target/site -name "surefire-report.html" -type f 2>/dev/null
+          if [ -f target/site/surefire-report.html ]; then
+            echo "✅ surefire-report.html FOUND in target/site/"
+          else
+            echo "❌ NOT found in target/site/, searching elsewhere..."
+            find target -name "surefire-report.html" -type f 2>/dev/null
             FOUND=$(find target -name "surefire-report.html" -type f | head -1)
             if [ -n "$FOUND" ]; then
-              echo "Found at: $FOUND, copying to target/site/"
+              echo "Found at: $FOUND — copying to target/site/"
               cp "$FOUND" target/site/surefire-report.html
-            else
-              echo "WARNING: surefire-report.html not found anywhere, generating manually..."
-              mvn -B surefire-report:report -DoutputDirectory=target/site
-              find target -name "surefire-report.html" -type f 2>/dev/null
-              FOUND2=$(find target -name "surefire-report.html" -type f | head -1)
-              if [ -n "$FOUND2" ]; then
-                cp "$FOUND2" target/site/surefire-report.html
-              fi
             fi
-          else
-            echo "surefire-report.html FOUND in target/site/ ✅"
           fi
-          echo "=== Files in target/site/ ==="
-          ls -la target/site/*.html 2>/dev/null || echo "No HTML files found"
+          echo "=== All HTML files in target/site/ ==="
+          ls target/site/*.html 2>/dev/null || echo "No HTML files found"
 
       # Step 7: Tambahkan custom index page
       - name: Create Custom Index Page
