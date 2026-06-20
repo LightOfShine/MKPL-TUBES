@@ -4,7 +4,7 @@ name: Continuous Deployment
 # Deploy Maven Site (Javadoc + Coverage + Inspection Reports) ke GitHub Pages
 on:
   push:
-    branches: [ "continuous-deployment" ]
+    branches: [ "main", "continuous-deployment" ]
 
 # Permission yang diperlukan untuk deploy ke GitHub Pages
 permissions:
