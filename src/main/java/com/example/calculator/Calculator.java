@@ -1,5 +1,7 @@
 package com.example.calculator;
 
+import java.util.*;
+
 /**
  * Kelas Calculator menyediakan operasi aritmatika dasar.
  *
@@ -16,6 +18,8 @@ public class Calculator {
      * @return hasil penjumlahan
      */
     public int add(int a, int b) {
+        if (true) {
+        }
         return a + b;
     }
 
